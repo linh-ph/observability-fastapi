@@ -1,4 +1,4 @@
-# FastAPI with SigNoz observability integration
+# FastAPI with observability integration
 ## Prerequisite
 
 SigNoz should be installed in your local machine or any server. To install SigNoz follow the instructions at https://signoz.io/docs/deployment/docker/
@@ -36,14 +36,6 @@ opentelemetry-bootstrap --action=install
 ```
 OTEL_RESOURCE_ATTRIBUTES=service.name=fastapiApp OTEL_EXPORTER_OTLP_ENDPOINT=http://<IP of SigNoz>:4317 OTEL_EXPORTER_OTLP_PROTOCOL=grpc opentelemetry-instrument uvicorn main:app --host localhost --port 5002
 ```
-
-`<IP of SigNoz>` will be `localhost` if you are running SigNoz in your localhost. For other installations you can use the same IP where SigNoz is accessible.
-
-Note: set `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` and port 4318 in endpoint `OTEL_EXPORTER_OTLP_ENDPOINT=http://<IP of SigNoz>:4318` if you are using OTLP HTTP exporter.
-
-- Generate traffic
-
-Our web server is running in the port 5002 by default. Browse `http://localhost:5002` to send requests to this FastAPI server and check the metrics and trace data at `http://<IP of SigNoz>:3301`
 
 
 ## Run with docker
@@ -95,6 +87,3 @@ Don't run app in reloader mode as it breaks instrumentation.
 
 If you face any problem in instrumenting with OpenTelemetry, refer to docs at 
 https://signoz.io/docs/instrumentation/python
-
-
-_Credit for this sample app goes to our contributor [sureshdsk](https://github.com/sureshdsk)._

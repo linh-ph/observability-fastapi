@@ -5,19 +5,21 @@ services:
     container_name: app
     build:
       context: ./service
-    # image: sample-app
     ports:
       - "5002:5002"
     environment:
-      - OTEL_RESOURCE_ATTRIBUTES='service.name=fastapiApp'
-      - OTEL_EXPORTER_OTLP_ENDPOINT='grpc://collector:4317'
-      # - OTEL_EXPORTER_OTLP_PROTOCOL='grpc'
+      - OTEL_RESOURCE_ATTRIBUTES='service.name=demo_app'
+      - OTEL_EXPORTER_OTLP_ENDPOINT='0.0.0.0:4317'
+      # - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - GRPC_VERBOSITY=debug
+      - GRPC_TRACE=http,call_error,connectivity_state
+      - OTEL_EXPORTER_OTLP_PROTOCOL='grpc'
     volumes:
       - ./service/app:/app
     restart: always
-    command: ["opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5002"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5002"]
     networks:
-      - observability-network
+      - observability
 
   openobserve:
     image: public.ecr.aws/zinclabs/openobserve:latest
@@ -32,15 +34,17 @@ services:
     volumes:
       - ./observe:/data
     networks:
-      - observability-network
+      - observability
     # depends_on:
     #   - collector
 
   collector:
-    image: otel/opentelemetry-collector-contrib
+    image: otel/opentelemetry-collector-contrib:latest
     container_name: collector
     volumes:
       - ./collector-config.yaml:/etc/otelcol-contrib/config.yaml
+      # - ./cert.pem:/etc/otelcol-contrib/cert.pem
+      # - ./cert-key.pem:/etc/otelcol-contrib/cert-key.pem
     ports:
     #- 1888:1888 # pprof extension
     #- 8888:8888 # Prometheus metrics exposed by the Collector
@@ -48,12 +52,14 @@ services:
     #- 13133:13133 # health_check extension
       - 4317:4317 # OTLP gRPC receiver
       - 4318:4318 # OTLP http receiver
+    # environment:
+    #   - OTEL_EXPORTERS_OTLP_TLS_INSECURE=true
     command: ["--config=/etc/otelcol-contrib/config.yaml", "--set=extensions.health_check.endpoint=:8889"]
     networks:
-      - observability-network
+      - observability
     depends_on:
       - openobserve
 
 networks:
-  observability-network:
+  observability:
     driver: bridge

@@ -23,7 +23,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 
 # random.seed(54321)
 trace.set_tracer_provider(TracerProvider())
-otlp_exporter = OTLPSpanExporter(endpoint="http://openobserve:4317", insecure=True)
+otlp_exporter = OTLPSpanExporter(insecure=True)
 # trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
 trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
 

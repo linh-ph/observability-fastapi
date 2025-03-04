@@ -1,13 +1,26 @@
 receivers:
-  filelog:
-    include: /service/app.log
+  # filelog:
+  #   include: [ /service/app.log ]
+  #   operators:
+  #     - type: regex_parser
+  #       regex: '^(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) (?P<sev>[A-Z]*) (?P<msg>.*)$'
+  #       timestamp:
+  #         parse_from: attributes.time
+  #         layout: '%Y-%m-%d %H:%M:%S'
+  #       severity:
+  #         parse_from: attributes.sev
+
   otlp:
     protocols:
       grpc:
         endpoint: "0.0.0.0:4317"
+        # transport: "tcp"
+        tls: {}
+        # insecure: true
         # tls:
-        #   cert_file: cert.pem
-        #   key_file: cert-key.pem
+        #   cert_file: .cert.pem
+        #   key_file: .cert-key.pem
+          # insecure: true
       http:
         endpoint: "0.0.0.0:4318"
 
@@ -21,13 +34,13 @@ exporters:
   otlphttp/openobserve:
     endpoint: http://localhost:5080/api/default
     headers:
-      Authorization: Basic YWRtaW5AYWRtaW4uY29tOkpVbTI4Tnl5UkkxR0M4RlY=
+      Authorization: Basic YWRtaW5AYWRtaW4uY29tOmZ4VHl0MGFzbDBGbHVMRGk=
       stream-name: default
   
   otlp/openobserve:
     endpoint: openobserve:5081
     headers:
-      Authorization: "Basic YWRtaW5AYWRtaW4uY29tOkpVbTI4Tnl5UkkxR0M4RlY="
+      Authorization: "Basic YWRtaW5AYWRtaW4uY29tOmZ4VHl0MGFzbDBGbHVMRGk="
       organization: default
       stream-name: default
     tls:
@@ -39,7 +52,7 @@ service:
   extensions: [health_check]
   pipelines:
     logs:
-      receivers: [filelog]
+      receivers: [otlp]
       processors: [batch]
       exporters: [otlp/openobserve]
       # exporters: [debug]
