@@ -1,0 +1,40 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+
+
+processors:
+  batch:
+    send_batch_size: 4000
+    send_batch_max_size: 4000
+    timeout: 10s
+  # If set to null, will be overridden with values based on k8s resource limits
+  memory_limiter: null
+
+exporters:
+  otlp:
+    endpoint: 'localhost:80'
+    tls:
+      insecure: true
+    sending_queue:
+      queue_size: 1000000
+
+
+service:
+  pipelines:
+    traces:
+      receivers: [jaeger, otlp]
+      exporters: [ otlp]
+      processors: [batch]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheusremotewrite]

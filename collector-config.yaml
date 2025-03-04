@@ -1,0 +1,50 @@
+receivers:
+  filelog:
+    include: /service/app.log
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+        # tls:
+        #   cert_file: cert.pem
+        #   key_file: cert-key.pem
+      http:
+        endpoint: "0.0.0.0:4318"
+
+processors:
+  batch:
+
+extensions:
+  health_check:
+
+exporters:
+  otlphttp/openobserve:
+    endpoint: http://localhost:5080/api/default
+    headers:
+      Authorization: Basic YWRtaW5AYWRtaW4uY29tOkpVbTI4Tnl5UkkxR0M4RlY=
+      stream-name: default
+  
+  otlp/openobserve:
+    endpoint: openobserve:5081
+    headers:
+      Authorization: "Basic YWRtaW5AYWRtaW4uY29tOkpVbTI4Tnl5UkkxR0M4RlY="
+      organization: default
+      stream-name: default
+    tls:
+      insecure: true
+  # debug:
+  #   verbosity: detailed 
+
+service:
+  extensions: [health_check]
+  pipelines:
+    logs:
+      receivers: [filelog]
+      processors: [batch]
+      exporters: [otlp/openobserve]
+      # exporters: [debug]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/openobserve]
+      # exporters: [debug]
