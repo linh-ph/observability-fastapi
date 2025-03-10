@@ -1,0 +1,106 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+        cors:
+          allowed_origins:
+            - http://*
+            - https://*
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 10000
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1000
+    spike_limit_mib: 200
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    
+exporters:
+  # health_check:
+  
+  # otlphttp/openobserve:
+  #   endpoint: http://localhost:5080/api/default
+  #   headers:
+  #     Authorization: Basic YWRtaW5AYWRtaW4uY29tOmZ4VHl0MGFzbDBGbHVMRGk=
+  #     stream-name: default
+  
+  # otlp/openobserve:
+  #   endpoint: openobserve:5081
+  #   headers:
+  #     Authorization: "Basic YWRtaW5AYWRtaW4uY29tOmZ4VHl0MGFzbDBGbHVMRGk="
+  #     organization: default
+  #     stream-name: default
+  #   tls:
+  #     insecure: true
+  
+  # clickhouse:
+  #   endpoint: http://clickhouse:8123
+  #   database: otel_db
+  #   username: default
+  #   password: ${env:CLICKHOUSE_PASSWORD}
+  #   timeout: 10s
+  #   sending_queue:
+  #     queue_size: 100
+  #   retry_on_failure:
+  #     enabled: true
+  #     initial_interval: 5s
+  #     max_interval: 30s
+  #     max_elapsed_time: 300s
+  #   logs:
+  #     table: otel_logs
+  #     dimensions:
+  #       - name: trace_id
+  #       - name: span_id
+  #       - name: severity_text
+  #       - name: severity_number
+  #       - name: service.name
+  #         value_from_attribute: service.name
+  #       - name: host.name
+  #         value_from_attribute: host.name
+  #   metrics:
+  #     table: otel_metrics
+  #     dimensions:
+  #       - name: name
+  #       - name: service.name
+  #         value_from_attribute: service.name
+  #       - name: host.name
+  #         value_from_attribute: host.name
+  #   traces:
+  #     table: otel_traces
+  #     dimensions:
+  #       - name: trace_id
+  #       - name: span_id
+  #       - name: parent_span_id
+  #       - name: name
+  #       - name: service.name
+  #         value_from_attribute: service.name
+  #       - name: status.code
+  #       - name: status.message
+  debug:
+    verbosity: detailed
+
+service:
+  extensions: [health_check]
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      # exporters: [otlp/openobserve]
+      exporters: [debug]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      # exporters: [clickhouse]
+      exporters: [debug]
+
+  telemetry:
+    logs:
+      level: debug
