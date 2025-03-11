@@ -10,7 +10,7 @@ services:
     environment:
       - OTEL_RESOURCE_ATTRIBUTES='service.name=demo_app'
       - OTEL_EXPORTER_OTLP_INSECURE=true
-      - OTEL_EXPORTER_OTLP_ENDPOINT='http://collector:4318'
+      - OTEL_EXPORTER_OTLP_ENDPOINT='collector:4317'
       - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
       - GRPC_VERBOSITY=debug
       - GRPC_TRACE=http,call_error,connectivity_state
@@ -64,6 +64,23 @@ services:
       - observability
     # depends_on:
     #   - openobserve
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    restart: always
+    ports:
+      - "8123:8123"  # HTTP Interface (API)
+      - "9000:9000"  # Native Interface (Client)
+    volumes:
+      - ./clickhouse_data:/var/lib/clickhouse
+      # - ./clickhouse-config.xml:/etc/clickhouse-server/config.xml
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin123
+      CLICKHOUSE_DB: logs_db
+    networks:
+      - observability
 
 networks:
   observability:

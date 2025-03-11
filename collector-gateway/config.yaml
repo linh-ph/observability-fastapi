@@ -11,6 +11,30 @@ receivers:
             - https://*
 
 processors:
+  transform:
+    log_statements:
+      - set(log.attributes, { "service.name": log.attributes["service.name"], "service.namespace": log.attributes["service.namespace"] })
+      - set(log.attributes, { "url": log.body["url"], "message": log.body["message"], "kind_of": log.body["kind_of"] })
+      # - from: log.body
+      #   to: log.attributes.url
+      #   actions:
+      #     - type: set
+      #       expression: json.parse(log.body).url
+      # - from: log.body
+      #   to: log.attributes.message
+      #   actions:
+      #     - type: set
+      #       expression: json.parse(log.body).message
+      # - from: log.body
+      #   to: log.attributes.kind_of
+      #   actions:
+      #     - type: set
+      #       expression: json.parse(log.body).kind_of
+      # - from: resource.attributes["service.name"]
+      #   to: log.attributes.module
+      #   actions:
+      #     - type: set
+      #       expression: resource.attributes["service.name"]
   batch:
     timeout: 1s
     send_batch_size: 10000
@@ -24,8 +48,6 @@ extensions:
     endpoint: 0.0.0.0:13133
     
 exporters:
-  # health_check:
-  
   # otlphttp/openobserve:
   #   endpoint: http://localhost:5080/api/default
   #   headers:
@@ -41,49 +63,24 @@ exporters:
   #   tls:
   #     insecure: true
   
-  # clickhouse:
-  #   endpoint: http://clickhouse:8123
-  #   database: otel_db
-  #   username: default
-  #   password: ${env:CLICKHOUSE_PASSWORD}
-  #   timeout: 10s
-  #   sending_queue:
-  #     queue_size: 100
-  #   retry_on_failure:
-  #     enabled: true
-  #     initial_interval: 5s
-  #     max_interval: 30s
-  #     max_elapsed_time: 300s
-  #   logs:
-  #     table: otel_logs
-  #     dimensions:
-  #       - name: trace_id
-  #       - name: span_id
-  #       - name: severity_text
-  #       - name: severity_number
-  #       - name: service.name
-  #         value_from_attribute: service.name
-  #       - name: host.name
-  #         value_from_attribute: host.name
-  #   metrics:
-  #     table: otel_metrics
-  #     dimensions:
-  #       - name: name
-  #       - name: service.name
-  #         value_from_attribute: service.name
-  #       - name: host.name
-  #         value_from_attribute: host.name
-  #   traces:
-  #     table: otel_traces
-  #     dimensions:
-  #       - name: trace_id
-  #       - name: span_id
-  #       - name: parent_span_id
-  #       - name: name
-  #       - name: service.name
-  #         value_from_attribute: service.name
-  #       - name: status.code
-  #       - name: status.message
+  clickhouse:
+    endpoint: tcp://clickhouse:9000?dial_timeout=10s&compress=lz4
+    # ttl: 96h
+    database: logs_db
+    username: admin
+    password: admin123
+    timeout: 10s
+    create_schema: false #Turn off the automatic schema feature, defualt is true create table: otel_logs, otel_traces
+    async_insert: true
+    logs_table_name: log
+    sending_queue:
+      queue_size: 100
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
   debug:
     verbosity: detailed
 
@@ -94,7 +91,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       # exporters: [otlp/openobserve]
-      exporters: [debug]
+      exporters: [clickhouse]
     traces:
       receivers: [otlp]
       processors: [batch]

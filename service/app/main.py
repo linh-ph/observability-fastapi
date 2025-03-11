@@ -1,11 +1,13 @@
 import asyncio
 import logging
-from fastapi import HTTPException, status, FastAPI
 import requests
 import random
+import json
+
+from fastapi import HTTPException, status, FastAPI
 from opentelemetry import trace
 from opentelemetry.trace.status import Status, StatusCode
-from opentelemetry._logs import set_logger_provider, set_logger_provider
+from opentelemetry._logs import set_logger_provider
 from opentelemetry.exporter.otlp.proto.grpc._log_exporter import (
     OTLPLogExporter,
 )
@@ -19,6 +21,7 @@ from opentelemetry.sdk.trace.export import (
 )
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from db import ClickHouseLogManager
 
 tracer_provider = TracerProvider(
     resource=Resource.create(
@@ -28,12 +31,8 @@ tracer_provider = TracerProvider(
         }
     ),
 )
-# url = 'http://openobserve:5080/api/default/v1/traces'
-# headers = {"Authorization": "Basic YWRtaW5AYWRtaW4uY29tOmZ4VHl0MGFzbDBGbHVMRGk="}
-# otlp_exporter = OTLPSpanExporter(endpoint="localhost:4317")
-otlp_exporter = OTLPSpanExporter(endpoint="http://collector:4318", insecure=True)
+otlp_exporter = OTLPSpanExporter(endpoint="collector:4317", insecure=True)
 # trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
-# trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(otlp_exporter))
 tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
 trace.set_tracer_provider(tracer_provider)
 
@@ -49,20 +48,19 @@ logger_provider = LoggerProvider(
 )
 
 # Cấu hình logs provider cho logs
-# exporter = OTLPLogExporter(endpoint="collector:4317", insecure=True)
-# logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
 logger_provider.add_log_record_processor(
-    BatchLogRecordProcessor(OTLPLogExporter(insecure=True))
+    BatchLogRecordProcessor(OTLPLogExporter(endpoint="collector:4317", insecure=True))
 )
+# set_logger_provider(logger_provider)
 set_logger_provider(logger_provider)
-# logger = set_logger_provider(logger_provider)
 
 handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 print("handler", handler)
 
 # # Set up logging
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 app = FastAPI()
 
@@ -107,9 +105,7 @@ async def exception():
     try:
         raise ValueError("sadness")
     except Exception as ex:
-        logger.error(ex, exc_info=True)
         span = trace.get_current_span()
-        print("span", span)
         # generate random number
         seconds = random.uniform(0, 30)
 
@@ -134,42 +130,35 @@ def external_api():
 
 @app.get("/log")
 def log():
-    # logger_provider = LoggerProvider(
-    #     resource=Resource.create(
-    #         {
-    #             "service.name": "demo_app",
-    #             # "service.instance.id": "instance-12",
-    #         }
-    #     ),
-    # )
-    # set_logger_provider(logger_provider)
+    data = {
+        "url": "https://example.com",
+        "module": "Xtrend",
+        "kind_of": "collection",
+        "message": "Collect message"
+    }
+    logger.info(json.dumps(data))
+    err = {
+        "url": "https://example.com",
+        "module": "Xtrend",
+        "kind_of": "collection",
+        "message": "Collect message"
+    }
+    logger.error(json.dumps(err))
+    return "ok"
 
-    # exporter = OTLPLogExporter(endpoint="collector:4317", insecure=True)
-    # logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
-    # handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
+log_manager = ClickHouseLogManager()
 
-    # Attach OTLP handler to root logger
-    logging.getLogger().addHandler(handler)
+@app.get("/create_table")
+def create_table():
+    log_manager.create_log_table()
+    return "ok"
 
-    # Create different namespaced loggers
-    # It is recommended to not use the root logger with OTLP handler
-    # so telemetry is collected only for the application
-    logger1 = logging.getLogger("app_demo.log1")
-    logger2 = logging.getLogger("app_demo.log2")
+@app.get("/create_log")
+def create_log():
+    log_manager.insert_log_entry('ERROR', 'Error message', 'https://example.com', 'Xtrend', 'collection')
+    return "ok"
 
-    logger1.debug("Quick zephyrs blow, vexing daft Jim.")
-    logger1.info("How quickly daft jumping zebras vex.")
-
-    logger2.warning("Jail zesty vixen who grabbed pay from quack.")
-    logger2.error("The five boxing wizards jump quickly.")
-
-
-    # Trace context correlation
-    tracer = trace.get_tracer(__name__)
-    print("tracer", tracer)
-    # with tracer.start_as_current_span("foo"):
-    #     # Do something
-    #     logger2.error("Hyderabad, we have a major problem.")
-
-    logger_provider.shutdown()
+@app.get("/logs")
+def logs():
+    log_manager.read_log_entries()
     return "ok"
