@@ -13,28 +13,23 @@ receivers:
 processors:
   transform:
     log_statements:
-      - set(log.attributes, { "service.name": log.attributes["service.name"], "service.namespace": log.attributes["service.namespace"] })
-      - set(log.attributes, { "url": log.body["url"], "message": log.body["message"], "kind_of": log.body["kind_of"] })
-      # - from: log.body
-      #   to: log.attributes.url
-      #   actions:
-      #     - type: set
-      #       expression: json.parse(log.body).url
-      # - from: log.body
-      #   to: log.attributes.message
-      #   actions:
-      #     - type: set
-      #       expression: json.parse(log.body).message
-      # - from: log.body
-      #   to: log.attributes.kind_of
-      #   actions:
-      #     - type: set
-      #       expression: json.parse(log.body).kind_of
-      # - from: resource.attributes["service.name"]
-      #   to: log.attributes.module
-      #   actions:
-      #     - type: set
-      #       expression: resource.attributes["service.name"]
+      - context: log
+        statements:
+          - set(attributes["module"], resource.attributes["service.name"])
+          # - set(attributes["url"], json.parse(log_record.body["url"]))
+          - set(attributes, ParseJSON(body))
+          # - set(attributes["timestamp"], time_unix_nano)
+          # - set(timestamp, time_unix_nano)
+          # - set(attributes["severity"], SeverityText)
+          - delete_key(attributes, "Trace ID")
+          - delete_key(attributes, "SeverityText")
+          - delete_key(attributes, "Body")
+  resource:
+    attributes:
+      - key: Trace ID
+        from_attribute: Trace ID
+        action: upsert
+
   batch:
     timeout: 1s
     send_batch_size: 10000
@@ -70,9 +65,11 @@ exporters:
     username: admin
     password: admin123
     timeout: 10s
-    create_schema: false #Turn off the automatic schema feature, defualt is true create table: otel_logs, otel_traces
+    ##Turn off the automatic schema feature, defualt is true create table: otel_logs, otel_traces
+    create_schema: true
     async_insert: true
-    logs_table_name: log
+    # logs_table_name: log
+    # logs_table_name: "log"
     sending_queue:
       queue_size: 100
     retry_on_failure:
@@ -89,14 +86,14 @@ service:
   pipelines:
     logs:
       receivers: [otlp]
-      processors: [batch]
+      processors: [transform, batch, resource]
       # exporters: [otlp/openobserve]
-      exporters: [clickhouse]
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      # exporters: [clickhouse]
-      exporters: [debug]
+      exporters: [clickhouse, debug]
+    # traces:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   # exporters: [clickhouse]
+    #   exporters: [debug]
 
   telemetry:
     logs:

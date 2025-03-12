@@ -10,6 +10,7 @@ class ClickHouseLogManager:
         CREATE TABLE IF NOT EXISTS log (
             id UUID,
             timestamp DateTime DEFAULT now(),
+            Timestamp DateTime,
             level String,
             message String,
             url String,
